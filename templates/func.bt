@@ -1,0 +1,5 @@
+function seupai() -> int {
+    let a = 12;
+    a * a
+}
+function suamae() -> int = 5 + 12;

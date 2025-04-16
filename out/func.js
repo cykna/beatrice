@@ -14,3 +14,7 @@ function seuirmao(n){
     return n*4;
 }
 
+function main(){
+    return seuirmao(12);
+}
+

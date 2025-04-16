@@ -12,6 +12,14 @@ impl BeatriceTranspiler {
         format!("({lhs}{operator}{rhs})")
     }
 
+    fn generate_fcall_content(&mut self, name: &str, args: &VecDeque<AST>) -> String {
+        let mut params = Vec::with_capacity(args.len());
+        for arg in args {
+            params.push(self.generate_expression_content(arg));
+        }
+        format!("{name}({})", params.join(","))
+    }
+
     fn generate_expression_content(&mut self, ast: &AST) -> String {
         match ast {
             AST::Function { .. } => self.generate_function_content(ast),
@@ -45,6 +53,7 @@ impl BeatriceTranspiler {
                 content
             }
             AST::Return(r) => format!("return {};", self.generate_expression_content(r)),
+            AST::FunctionCall { name, args } => self.generate_fcall_content(name, args),
         }
     }
     fn generate_function_content(&mut self, ast: &AST) -> String {

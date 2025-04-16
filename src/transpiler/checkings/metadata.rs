@@ -15,6 +15,16 @@ impl BeatriceTranspiler {
             AST::BinExpr(lhs, ..) => self.ast_typeof_expression(lhs)?,
             AST::Function { .. } => self.ast_typeof_function(expr)?,
             AST::Return(r) => self.ast_typeof_expression(r)?,
+            AST::FunctionCall { name, .. } => {
+                //i dont think is needed to do the args checking again, so im not gonna do. If
+                //finding some bugs, imma implement it
+                let BeatriceType::Function { return_type, .. } = self.typeof_function(name)? else {
+                    panic!(
+                        "This is a bug. typeof_function method expected to return a function or error, but it returned anything else"
+                    );
+                };
+                *return_type.clone()
+            }
         };
         Ok(v)
     }
@@ -68,7 +78,16 @@ impl BeatriceTranspiler {
     pub(crate) fn typeof_var(&self, identifier: &str) -> Result<BeatriceType, TypeError> {
         for scope in self.scopes() {
             if scope.has_variable_or_function(identifier) {
-                return Ok(scope.kindof(identifier).clone());
+                return Ok(scope.kindof(identifier)?.clone());
+            }
+        }
+        Err(TypeError::NotRecognizedVar(identifier.to_string()))
+    }
+
+    pub(crate) fn typeof_function(&self, identifier: &str) -> Result<BeatriceType, TypeError> {
+        for scope in self.scopes() {
+            if scope.has_function(identifier) {
+                return Ok(scope.kindof(identifier)?.clone());
             }
         }
         Err(TypeError::NotRecognizedVar(identifier.to_string()))
@@ -89,20 +108,34 @@ impl BeatriceTranspiler {
                     self.current_scope_mut()
                         .define_variable(param.paramname.clone(), param_type);
                 }
+                let mut n = 0;
                 for ast in body.body() {
                     if let AST::Return(ast) = ast {
+                        n += 1;
                         let rtype = self.ast_typeof_expression(ast)?;
                         let BeatriceType::Function { return_type, .. } = &ftype else {
                             unreachable!();
                         };
+                        dbg!(&rtype, &return_type);
                         if **return_type != rtype {
                             return Err(TypeError::UnexpectedType {
                                 expected: *return_type.clone(),
                                 received: rtype,
                             }); //change to unexpected type.
                         }
+                    } else {
+                        self.generate_metadata(ast)?;
                     }
-                    self.generate_metadata(ast)?;
+                }
+                if n == 0 {
+                    if let BeatriceType::Function { return_type, .. } = &ftype {
+                        if BeatriceType::Void != **return_type {
+                            return Err(TypeError::UnexpectedType {
+                                expected: *return_type.clone(),
+                                received: BeatriceType::Void,
+                            });
+                        }
+                    }
                 }
             }
             AST::Identifier(s) => {
@@ -120,6 +153,20 @@ impl BeatriceTranspiler {
                 self.generate_metadata(rhs)?;
             }
             AST::Return(r) => self.generate_metadata(r)?,
+            AST::FunctionCall { name, args } => {
+                let BeatriceType::Function { params, .. } = self.typeof_function(name)? else {
+                    panic!("What in the fuck? This isn't a function");
+                };
+                for (idx, param) in params.iter().enumerate() {
+                    let arg_type = self.ast_typeof_expression(&args[idx])?;
+                    if arg_type != *param {
+                        return Err(TypeError::UnexpectedType {
+                            expected: param.clone(),
+                            received: arg_type,
+                        });
+                    }
+                }
+            }
         };
         Ok(())
     }

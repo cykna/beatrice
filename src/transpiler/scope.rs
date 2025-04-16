@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{BeatriceType, checkings::checker::TypeChecker};
+use super::{BeatriceType, TypeError, checkings::checker::TypeChecker};
 
 pub struct Scope {
     var_names: HashSet<String>,
@@ -17,23 +17,34 @@ impl Scope {
         }
     }
 
+    #[inline]
     pub fn define_variable(&mut self, varname: String, kind: BeatriceType) {
         self.var_names.insert(varname.clone());
         self.types.define(varname, kind);
     }
 
+    #[inline]
     pub fn define_function(&mut self, name: String, kind: BeatriceType) {
         assert!(matches!(kind, BeatriceType::Function { .. }));
         self.function_names.insert(name.clone());
         self.types.define(name, kind);
     }
 
+    #[inline]
+    pub fn has_function(&self, name: &str) -> bool {
+        self.function_names.contains(name)
+    }
+
+    #[inline]
     pub fn has_variable_or_function(&self, name: &str) -> bool {
         self.var_names.contains(name) || self.function_names.contains(name)
     }
 
+    #[inline]
     /// Gets the typeof a variable. Throws if it does not exist
-    pub fn kindof(&self, name: &str) -> &BeatriceType {
-        self.types.get(name).unwrap()
+    pub fn kindof(&self, name: &str) -> Result<&BeatriceType, TypeError> {
+        self.types
+            .get(name)
+            .ok_or(TypeError::NotRecognizedVar(name.to_string()))
     }
 }

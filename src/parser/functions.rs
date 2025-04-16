@@ -93,25 +93,32 @@ impl Parser {
             if let Token {
                 kind: tk @ (TokenKind::Operator(Operator::Eq(false)) | TokenKind::OpenBrace),
                 ..
-            } = &curr
+            } = curr
             {
-                body_type = match tk {
-                    TokenKind::OpenBrace => FunctionBodyType::Block,
-                    _ => FunctionBodyType::Expression,
+                match tk {
+                    TokenKind::OpenBrace => {}
+                    _ => body_type = FunctionBodyType::Expression,
                 };
                 TypeAst::Primitive("void".to_string())
             } else if let Token {
                 kind: TokenKind::Colon,
                 ..
-            } = &curr
+            } = curr
             {
                 let type_tokens = self.get_type()?;
-                if let Some(Token {
-                    kind: TokenKind::Operator(Operator::Eq(false)),
-                    ..
-                }) = self.peek()
-                {
-                    body_type = FunctionBodyType::Expression
+                let curr = self.eat()?;
+                match curr.kind {
+                    TokenKind::Operator(Operator::Eq(false)) => {
+                        body_type = FunctionBodyType::Expression
+                    }
+                    TokenKind::OpenBrace => {}
+                    _ => {
+                        return Err(AstError {
+                            line: curr.line,
+                            column: curr.column,
+                            kind: AstErrorKind::InvalidReturnType(curr.kind),
+                        });
+                    }
                 };
                 type_tokens
             } else {
@@ -123,12 +130,10 @@ impl Parser {
             }
         };
         let body = if body_type == FunctionBodyType::Block {
-            expect!(self, TokenKind::OpenBrace)?;
             Program {
                 body: self.parse_fbody()?,
             }
         } else {
-            expect!(self, TokenKind::Operator(Operator::Eq(false)))?;
             let current = self.eat()?;
             let p = Program {
                 body: VecDeque::from(vec![AST::Return(Box::new(self.parse_expr(current)?))]),
@@ -141,6 +146,37 @@ impl Parser {
             returntype,
             body,
             params,
+        })
+    }
+    pub fn parse_function_call(&mut self, fname: String) -> Result<AST, AstError> {
+        if let Some(Token {
+            kind: TokenKind::CloseParen,
+            ..
+        }) = self.peek()
+        {
+            self.eat()?;
+            return Ok(AST::FunctionCall {
+                name: fname,
+                args: VecDeque::new(),
+            });
+        }
+        let mut params = VecDeque::new();
+        loop {
+            let curr = self.eat()?;
+            params.push_back(self.parse_expr(curr)?);
+            if let Some(Token {
+                kind: TokenKind::CloseParen,
+                ..
+            }) = self.peek()
+            {
+                self.eat()?;
+                break;
+            }
+            expect!(self, TokenKind::Comma)?;
+        }
+        Ok(AST::FunctionCall {
+            name: fname,
+            args: params,
         })
     }
 }

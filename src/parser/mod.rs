@@ -48,6 +48,10 @@ pub enum AST {
         returntype: TypeAst,
         body: Program,
     },
+    FunctionCall {
+        name: String,
+        args: VecDeque<AST>,
+    },
     Return(Box<AST>),
 }
 #[derive(Debug, Default)]

@@ -8,6 +8,6 @@ function seupai(): int {
 function suamae(): int = 5 + 12;
 function seuirmao(n:int):int = n * 4;
 
-function main(){
-  seuirmao(5)
+function main():int {
+  seuirmao(12)
 }

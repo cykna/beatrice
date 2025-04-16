@@ -9,7 +9,7 @@ fn main() {
     let mut parser = parser::Parser::from_content(&file_content);
     let ast = parser.gen_ast();
     let mut transpiler = BeatriceTranspiler::new("./out/func.js");
-    println!("{ast:#?}");
+
     println!("{:#?}", transpiler.start_transpilation(ast.unwrap().body()));
 }
 #[cfg(test)]

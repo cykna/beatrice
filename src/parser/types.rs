@@ -30,6 +30,8 @@ impl Parser {
             return_type: Box::new(self.get_type()?),
         })
     }
+    ///Eats the current token and return it's abstract type. Its supposed to be used only with type
+    ///Tokens
     pub fn get_type(&mut self) -> Result<TypeAst, AstError> {
         let current = self.eat()?;
         match current.kind {

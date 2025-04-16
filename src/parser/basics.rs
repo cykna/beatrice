@@ -120,9 +120,19 @@ impl Parser {
                 expect!(self, TokenKind::CloseParen)?;
                 Ok(val)
             }
-            TokenKind::Identifier(_) | TokenKind::Int(_) | TokenKind::Float(_) => {
-                self.parse_expr(tk)
+            TokenKind::Identifier(ref s) => {
+                if let Some(Token {
+                    kind: TokenKind::OpenParen,
+                    ..
+                }) = self.peek()
+                {
+                    self.eat()?;
+                    self.parse_function_call(s.clone())
+                } else {
+                    self.parse_expr(tk)
+                }
             }
+            TokenKind::Int(_) | TokenKind::Float(_) => self.parse_expr(tk),
             _ => Err(AstError {
                 kind: AstErrorKind::UnexpectedToken(tk),
                 line: 0,

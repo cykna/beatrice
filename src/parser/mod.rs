@@ -1,5 +1,7 @@
 mod basics;
 mod functions;
+mod types;
+
 use functions::FunctionParameter;
 
 pub use crate::tokenizer::{Operator, Token, TokenKind, tokenize};
@@ -8,6 +10,7 @@ pub use std::collections::VecDeque;
 #[derive(Debug)]
 pub enum AstErrorKind {
     InvalidScopeExpr(TokenKind),
+    InvalidReturnType(TokenKind),
     UnexpectedToken(Token),
     EatingEOF,
 }
@@ -17,6 +20,15 @@ pub struct AstError {
     line: usize,
     column: usize,
     kind: AstErrorKind,
+}
+
+#[derive(Debug)]
+pub enum TypeAst {
+    Primitive(String),
+    Function {
+        params: Vec<TypeAst>,
+        return_type: Box<TypeAst>,
+    },
 }
 
 #[derive(Debug)]
@@ -32,12 +44,13 @@ pub enum AST {
     },
     Function {
         name: String,
-        params: Vec<FunctionParameter>,
-        returntype: String,
+        params: VecDeque<FunctionParameter>,
+        returntype: TypeAst,
         body: Program,
     },
+    Return(Box<AST>),
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Program {
     body: VecDeque<AST>,
 }
@@ -49,7 +62,7 @@ macro_rules! expect {
     ($parser:expr, $pattern:pat) => {{
         let tk = $parser.tokens.pop_front();
         match tk {
-            Some(Token { kind: $pattern, .. }) => Ok(tk.unwrap()),
+            Some(t @ Token { kind: $pattern, .. }) => Ok(t),
             Some(_) => {
                 let tk = tk.unwrap();
                 Err(AstError {
@@ -110,8 +123,22 @@ impl Parser {
             Err(errs)
         }
     }
+
+    #[inline]
     pub fn start_gen(&mut self, token: Token) -> Result<AST, AstError> {
         self.parse_global_scope(token)
     }
 }
 
+impl AST {
+    #[inline]
+    pub fn is_binexpr(&self) -> bool {
+        matches!(self, Self::BinExpr(_, _, _))
+    }
+}
+
+impl Program {
+    pub fn body(&self) -> &VecDeque<AST> {
+        &self.body
+    }
+}

@@ -1,5 +1,13 @@
-function seupai() -> int {
+function seupai(): int {
     let a = 12;
-    a * a
+    let mut c = 5;
+    let d = a + a + c;
+    let b = 5;
+    b + d
 }
-function suamae() -> int = 5 + 12;
+function suamae(): int = 5 + 12;
+function seuirmao(n:int):int = n * 4;
+
+function main(){
+  seuirmao(5)
+}

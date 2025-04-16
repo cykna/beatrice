@@ -73,6 +73,9 @@ impl Parser {
         }
         Ok(left)
     }
+    /**
+     * Parses the current expression. The given token is the current token
+     */
     pub fn parse_expr(&mut self, tk: Token) -> Result<AST, AstError> {
         self.parse_additive(tk)
     }
@@ -141,4 +144,3 @@ impl Parser {
         }
     }
 }
-

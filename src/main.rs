@@ -1,10 +1,16 @@
+use transpiler::transpiler::BeatriceTranspiler;
+
 mod parser;
 mod tokenizer;
+mod transpiler;
 
 fn main() {
     let file_content = std::fs::read_to_string("./templates/func.bt").unwrap();
     let mut parser = parser::Parser::from_content(&file_content);
-    println!("{:#?}", parser.gen_ast());
+    let ast = parser.gen_ast();
+    let mut transpiler = BeatriceTranspiler::new("./out/func.js");
+    println!("{ast:#?}");
+    println!("{:#?}", transpiler.start_transpilation(ast.unwrap().body()));
 }
 #[cfg(test)]
 mod tests {

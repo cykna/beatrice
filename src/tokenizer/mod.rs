@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Display};
 
 macro_rules! token {
     ($arg:expr, $actual:expr, $line:expr, $column:expr) => {{
@@ -41,7 +41,60 @@ pub enum Operator {
     Increment,
     Decrement,
 }
-
+impl Operator {
+    pub fn has_eq(&self) -> bool {
+        match self {
+            Self::Arrow | Self::Increment | Self::Decrement => false,
+            Self::Add(f)
+            | Self::Sub(f)
+            | Self::Star(f)
+            | Self::Slash(f)
+            | Self::Pow(f)
+            | Self::Gt(f)
+            | Self::Lt(f)
+            | Self::Eq(f)
+            | Self::Bang(f)
+            | Self::Mod(f)
+            | Self::And(f)
+            | Self::Or(f)
+            | Self::BitAnd(f)
+            | Self::BitOr(f)
+            | Self::Xor(f)
+            | Self::BitLeft(f)
+            | Self::BitRight(f) => *f,
+        }
+    }
+}
+impl Display for Operator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let content = {
+            let flag = if self.has_eq() { "=" } else { "" };
+            match self {
+                Self::Add(_) => format!("+{flag}"),
+                Self::Sub(_) => format!("-{flag}"),
+                Self::Star(_) => format!("*{flag}"),
+                Self::Slash(_) => format!("/{flag}"),
+                Self::Pow(_) => format!("**{flag}"),
+                Self::Gt(_) => format!(">{flag}"),
+                Self::Lt(_) => format!("<{flag}"),
+                Self::Eq(_) => format!("={flag}"),
+                Self::Bang(_) => format!("!{flag}"),
+                Self::Mod(_) => format!("%{flag}"),
+                Self::And(_) => format!("&&{flag}"),
+                Self::Or(_) => format!("||{flag}",),
+                Self::BitAnd(_) => format!("&{flag}"),
+                Self::BitOr(_) => format!("|{flag}"),
+                Self::Xor(_) => format!("^{flag}"),
+                Self::BitLeft(_) => format!("<<{flag}"),
+                Self::BitRight(_) => format!(">>{flag}"),
+                Self::Arrow => "->".to_string(),
+                Self::Increment => "++".to_string(),
+                Self::Decrement => "--".to_string(),
+            }
+        };
+        write!(f, "{content}")
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
 pub enum Reserved {
     Trait,

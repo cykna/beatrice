@@ -1,145 +1,146 @@
 use std::collections::VecDeque;
 
-use crate::{
-    expect,
-    parser::{Token, TokenKind},
-};
-
-use super::{AST, AstError, AstErrorKind, Operator, Parser, Program};
+use super::{AST, AstError, AstErrorKind, Operator, Program, Token, TokenKind, TypeAst};
+use crate::{expect, parser::Parser};
 
 #[derive(Debug)]
 pub struct FunctionParameter {
-    varname: Token,
-    vartype: Token,
+    pub paramname: String,
+    pub paramtype: TypeAst,
+}
+#[derive(PartialEq, Eq)]
+enum FunctionBodyType {
+    Block,
+    Expression,
 }
 
 impl Parser {
-    pub fn parse_body(&mut self) -> Result<Program, AstError> {
-        let mut body = VecDeque::new();
-        while !matches!(
-            self.peek(),
-            Some(Token {
-                kind: TokenKind::CloseBrace,
-                ..
-            })
-        ) {
-            let next = self.eat()?;
-            let ast = self.parse_statment(next)?;
+    ///Parses the current function parameter, eating only its necessary data to create a FunctionParameter.
+    fn parse_fparameter(&mut self) -> Result<FunctionParameter, AstError> {
+        let Token {
+            kind: TokenKind::Identifier(paramname),
+            ..
+        } = expect!(self, TokenKind::Identifier(_))?
+        else {
+            unreachable!();
+        };
+        expect!(self, TokenKind::Colon)?;
+        let paramtype = self.get_type()?;
+        Ok(FunctionParameter {
+            paramname,
+            paramtype,
+        })
+    }
 
-            body.push_back(ast);
-            match self.peek() {
-                Some(Token {
-                    kind: TokenKind::CloseBrace,
-                    ..
-                }) => {}
-                _ => {
-                    expect!(self, TokenKind::SemiColon)?;
-                }
+    fn parse_params(&mut self) -> Result<VecDeque<FunctionParameter>, AstError> {
+        let mut params = VecDeque::new();
+        loop {
+            if let Some(Token {
+                kind: TokenKind::CloseParen,
+                ..
+            }) = self.peek()
+            {
+                self.eat()?;
+                break;
+            }
+            params.push_back(self.parse_fparameter()?);
+            let kind = expect!(self, TokenKind::CloseParen | TokenKind::Comma)?.kind;
+            if let TokenKind::CloseParen = kind {
+                break;
             }
         }
-        Ok(Program { body })
+        Ok(params)
     }
+    pub fn parse_fbody(&mut self) -> Result<VecDeque<AST>, AstError> {
+        let mut vec = VecDeque::new();
+        loop {
+            let current = self.eat()?;
+            if let Token {
+                kind: TokenKind::CloseBrace,
+                ..
+            } = current
+            {
+                break;
+            }
+            let statment = self.parse_statment(current)?;
+            if let Some(Token {
+                kind: TokenKind::CloseBrace,
+                ..
+            }) = self.peek()
+            {
+                vec.push_back(AST::Return(Box::new(statment)))
+            } else {
+                vec.push_back(statment);
+                expect!(self, TokenKind::SemiColon)?;
+            }
+        }
+        Ok(vec)
+    }
+
     pub fn parse_function(&mut self) -> Result<AST, AstError> {
         let Token {
-            kind: TokenKind::Identifier(fname),
+            kind: TokenKind::Identifier(name),
             ..
         } = expect!(self, TokenKind::Identifier(_))?
         else {
             unreachable!();
         };
         expect!(self, TokenKind::OpenParen)?;
-        let mut params = Vec::new();
-        while !matches!(
-            self.peek(),
-            Some(Token {
-                kind: TokenKind::CloseParen,
-                ..
-            })
-        ) {
-            let varname = expect!(self, TokenKind::Identifier(_))?;
-            expect!(self, TokenKind::Colon)?;
-            let vartype = expect!(self, TokenKind::Identifier(_))?;
-            params.push(FunctionParameter { varname, vartype });
-            if let Some(Token {
-                kind: TokenKind::CloseParen,
-                ..
-            }) = self.peek()
-            {
-                break;
-            } else {
-                expect!(self, TokenKind::Comma)?
-            };
-        }
-        self.eat()?; //Eat close paren
-        let mut hascope = false;
+        let params = self.parse_params()?;
+        let mut body_type = FunctionBodyType::Block;
         let returntype = {
-            let curr = self.peek();
-            match curr {
-                Some(Token {
-                    kind: TokenKind::Operator(Operator::Arrow),
-                    ..
-                }) => {
-                    self.eat()?;
-                    let Token {
-                        kind: TokenKind::Identifier(rtype),
-                        ..
-                    } = expect!(self, TokenKind::Identifier(_))?
-                    else {
-                        unreachable!();
-                    };
-                    rtype
-                }
-                Some(Token {
-                    kind: kind @ (TokenKind::Operator(Operator::Eq(false)) | TokenKind::OpenBrace),
-                    ..
-                }) => {
-                    hascope = matches!(kind, TokenKind::OpenBrace);
-                    String::from("void")
-                }
-                None => {
-                    return Err(AstError {
-                        kind: AstErrorKind::EatingEOF,
-                        line: 0,
-                        column: 0,
-                    });
-                }
-                _ => {
-                    let tk = self.eat().unwrap();
-                    return Err(AstError {
-                        line: tk.line,
-                        column: tk.column,
-                        kind: AstErrorKind::UnexpectedToken(tk),
-                    });
-                }
-            }
-        };
-        let body = if !hascope {
             let curr = self.eat()?;
             if let Token {
-                kind: TokenKind::Operator(Operator::Eq(false)),
+                kind: tk @ (TokenKind::Operator(Operator::Eq(false)) | TokenKind::OpenBrace),
                 ..
-            } = curr
+            } = &curr
             {
-                let curr = self.eat()?;
-                let mut deque = VecDeque::with_capacity(1);
-                deque.push_back(self.parse_expr(curr)?);
-                expect!(self, TokenKind::SemiColon)?;
-                Ok(Program { body: deque })
+                body_type = match tk {
+                    TokenKind::OpenBrace => FunctionBodyType::Block,
+                    _ => FunctionBodyType::Expression,
+                };
+                TypeAst::Primitive("void".to_string())
+            } else if let Token {
+                kind: TokenKind::Colon,
+                ..
+            } = &curr
+            {
+                let type_tokens = self.get_type()?;
+                if let Some(Token {
+                    kind: TokenKind::Operator(Operator::Eq(false)),
+                    ..
+                }) = self.peek()
+                {
+                    body_type = FunctionBodyType::Expression
+                };
+                type_tokens
             } else {
-                let val = self.parse_body()?;
-                expect!(self, TokenKind::CloseBrace)?;
-                Ok(val)
+                return Err(AstError {
+                    line: curr.line,
+                    column: curr.column,
+                    kind: AstErrorKind::InvalidReturnType(curr.kind),
+                });
+            }
+        };
+        let body = if body_type == FunctionBodyType::Block {
+            expect!(self, TokenKind::OpenBrace)?;
+            Program {
+                body: self.parse_fbody()?,
             }
         } else {
-            let val = self.parse_body()?;
-            expect!(self, TokenKind::CloseBrace)?;
-            Ok(val)
-        }?;
+            expect!(self, TokenKind::Operator(Operator::Eq(false)))?;
+            let current = self.eat()?;
+            let p = Program {
+                body: VecDeque::from(vec![AST::Return(Box::new(self.parse_expr(current)?))]),
+            };
+            expect!(self, TokenKind::SemiColon)?;
+            p
+        };
         Ok(AST::Function {
-            name: fname,
-            params,
+            name,
             returntype,
             body,
+            params,
         })
     }
 }

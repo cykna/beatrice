@@ -144,7 +144,7 @@ impl Parser {
 
     pub fn parse_global_scope(&mut self, token: Token) -> Result<AST, AstError> {
         match &token.kind {
-            TokenKind::Reserved(Reserved::Struct) => todo!(),
+            TokenKind::Reserved(Reserved::Struct) => self.parse_struct_decl(),
             TokenKind::Reserved(Reserved::Function) => self.parse_function(), //does not neet to give the token because the current is 'function' keyword
             _ => Err(AstError {
                 kind: AstErrorKind::InvalidScopeExpr(token.kind),

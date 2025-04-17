@@ -1,0 +1,9 @@
+struct Suamae {
+  eita: int;
+  suamae: float;
+}
+
+function main():void {
+  let a = 5;
+
+}

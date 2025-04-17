@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::transpiler::BeatriceType;
 
+#[derive(Default)]
 pub struct TypeChecker {
     var_types: HashMap<String, BeatriceType>,
 }

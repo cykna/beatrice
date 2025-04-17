@@ -145,119 +145,122 @@ fn check_operator(c: &char, chars: &[char], idx: usize) -> Option<(Operator, usi
     if !is_operator(c) {
         return None;
     }
-    let next = chars
-        .get(idx + 1)
-        .expect("While tokenizing operator, reached EOF");
-    let flag = matches!(next, '=');
-    let mut n = if flag { 1 } else { 0 } + 1;
-    let operator = match c {
-        '+' => match next {
-            '+' => {
-                n += 1;
-                Operator::Increment
-            }
-            _ => Operator::Add(flag),
-        },
-        '-' => match next {
-            '-' => {
-                n += 1;
-                Operator::Decrement
-            }
-            '>' => {
-                n += 1;
-                Operator::Arrow
-            }
-            _ => Operator::Sub(flag),
-        },
-        '*' => match next {
-            '*' => {
-                n += 1;
-                let flag = matches!(
-                    chars
-                        .get(idx + 2)
-                        .expect("While tokenizing operator, reached EOF"),
-                    '='
-                );
-                if flag {
-                    n += 1
-                };
-                Operator::Pow(flag)
-            }
-            _ => Operator::Star(flag),
-        },
-        '/' => Operator::Slash(flag),
-        '=' => Operator::Eq(flag),
-        '!' => Operator::Bang(flag),
-        '&' => match next {
-            '&' => {
-                n += 1;
-                let flag = matches!(
-                    chars
-                        .get(idx + 2)
-                        .expect("While tokenizing operator, reached EOF"),
-                    '='
-                );
-                if flag {
-                    n += 1
-                };
-                Operator::And(flag)
-            }
-            _ => Operator::BitAnd(flag),
-        },
-        '|' => match next {
-            '|' => {
-                n += 1;
-                let flag = matches!(
-                    chars
-                        .get(idx + 2)
-                        .expect("While tokenizing operator, reached EOF"),
-                    '='
-                );
-                if flag {
-                    n += 1
-                };
-                Operator::BitOr(flag)
-            }
-            _ => Operator::Or(flag),
-        },
-        '>' => match next {
-            '>' => {
-                n += 1;
-                let flag = matches!(
-                    chars
-                        .get(idx + 2)
-                        .expect("While tokenizing operator, reached EOF"),
-                    '='
-                );
-                if flag {
-                    n += 1
-                };
-                Operator::BitLeft(flag)
-            }
-            _ => Operator::Gt(flag),
-        },
-        '<' => match next {
-            '<' => {
-                n += 1;
-                let flag = matches!(
-                    chars
-                        .get(idx + 2)
-                        .expect("While tokenizing operator, reached EOF"),
-                    '='
-                );
-                if flag {
-                    n += 1
-                };
-                Operator::BitRight(flag)
-            }
-            _ => Operator::Lt(flag),
-        },
+    let next = chars.get(idx + 1);
 
-        '^' => Operator::Xor(flag),
-        '%' => Operator::Mod(flag),
-        _ => return None,
-    };
-    Some((operator, n))
+    if let Some(next) = next {
+        let flag = matches!(next, '=');
+        let mut n = if flag { 1 } else { 0 } + 1;
+        let operator = match c {
+            '+' => match next {
+                '+' => {
+                    n += 1;
+                    Operator::Increment
+                }
+                _ => Operator::Add(flag),
+            },
+            '-' => match next {
+                '-' => {
+                    n += 1;
+                    Operator::Decrement
+                }
+                '>' => {
+                    n += 1;
+                    Operator::Arrow
+                }
+                _ => Operator::Sub(flag),
+            },
+            '*' => match next {
+                '*' => {
+                    n += 1;
+                    let next = chars.get(idx + 2);
+                    if matches!(next, Some('=')) {
+                        n += 1;
+                        Operator::Pow(true)
+                    } else {
+                        Operator::Pow(false)
+                    }
+                }
+                _ => Operator::Star(flag),
+            },
+            '/' => Operator::Slash(flag),
+            '=' => Operator::Eq(flag),
+            '!' => Operator::Bang(flag),
+            '&' => match next {
+                '&' => {
+                    n += 1;
+                    let next = chars.get(idx + 2);
+                    if matches!(next, Some('=')) {
+                        n += 1;
+                        Operator::And(true)
+                    } else {
+                        Operator::And(false)
+                    }
+                }
+                _ => Operator::BitAnd(flag),
+            },
+            '|' => match next {
+                '|' => {
+                    n += 1;
+                    let next = chars.get(idx + 2);
+                    if matches!(next, Some('=')) {
+                        n += 1;
+                        Operator::Or(true)
+                    } else {
+                        Operator::Or(false)
+                    }
+                }
+                _ => Operator::Or(flag),
+            },
+            '>' => match next {
+                '>' => {
+                    n += 1;
+                    let next = chars.get(idx + 2);
+                    if matches!(next, Some('=')) {
+                        n += 1;
+                        Operator::BitRight(true)
+                    } else {
+                        Operator::BitRight(false)
+                    }
+                }
+                _ => Operator::Gt(flag),
+            },
+            '<' => match next {
+                '<' => {
+                    n += 1;
+                    let next = chars.get(idx + 2);
+                    if matches!(next, Some('=')) {
+                        n += 1;
+                        Operator::BitLeft(true)
+                    } else {
+                        Operator::BitLeft(false)
+                    }
+                }
+                _ => Operator::Lt(flag),
+            },
+
+            '^' => Operator::Xor(flag),
+            '%' => Operator::Mod(flag),
+            _ => return None,
+        };
+        Some((operator, n))
+    } else {
+        let operator = match c {
+            '+' => Operator::Add(false),
+            '-' => Operator::Sub(false),
+            '*' => Operator::Star(false),
+            '/' => Operator::Slash(false),
+            '=' => Operator::Eq(false),
+            '!' => Operator::Bang(false),
+            '&' => Operator::BitAnd(false),
+            '|' => Operator::Or(false),
+            '>' => Operator::Gt(false),
+            '<' => Operator::Lt(false),
+            '^' => Operator::Xor(false),
+            '%' => Operator::Mod(false),
+            _ => return None,
+        };
+        Some((operator, 1))
+    }
 }
 
 //Checks if the current char is a symbol initializer, if so, gets all symbol chars and return the corresponding token and amount of chars walked by

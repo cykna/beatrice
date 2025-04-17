@@ -1,11 +1,11 @@
 mod basics;
 mod functions;
+mod structs;
 mod types;
-
-use functions::FunctionParameter;
+pub use functions::FunctionParameter;
 
 pub use crate::tokenizer::{Operator, Token, TokenKind, tokenize};
-pub use std::collections::VecDeque;
+use std::collections::VecDeque;
 
 #[derive(Debug)]
 pub enum AstErrorKind {

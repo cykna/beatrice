@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use super::{BeatriceType, TypeError, checkings::checker::TypeChecker};
 
+#[derive(Default)]
 pub struct Scope {
     var_names: HashSet<String>,
     function_names: HashSet<String>,

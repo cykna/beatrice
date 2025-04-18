@@ -28,4 +28,20 @@ pub enum TypeError {
         expected: BeatriceType,
         received: BeatriceType,
     },
+    InvalidFieldName {
+        field: String,
+        target_struct: String,
+    },
+    InvalidFieldValue {
+        target: String,
+        field: String,
+        expected: BeatriceType,
+        received: BeatriceType,
+    },
+    NotCorrectFields {
+        //for when not passing a field that is required. I must think in a better
+        //name
+        fields: Vec<String>,
+        target: String,
+    },
 }

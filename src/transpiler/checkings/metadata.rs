@@ -26,6 +26,50 @@ impl BeatriceTranspiler {
                 *return_type.clone()
             }
             AST::Struct { .. } => self.ast_typeof_struct(expr)?,
+            AST::StructExpr { name, fields } => {
+                let field_values = fields;
+
+                let BeatriceType::Struct { fields, order } = self.typeof_struct(name)? else {
+                    panic!("This is a bug. Expected typeof struct to return a struct type");
+                };
+                let mut flags = Vec::with_capacity(order.len());
+                for (idx, field) in field_values.iter().enumerate() {
+                    if let Some(field_type) = fields.get(&field.key) {
+                        flags.push(order[idx].clone());
+                        let expr_type = self.ast_typeof_expression(&field.value)?;
+                        if *field_type != expr_type {
+                            return Err(TypeError::InvalidFieldValue {
+                                target: name.clone(),
+                                field: field.key.clone(),
+                                received: expr_type,
+                                expected: field_type.clone(),
+                            });
+                        }
+                    } else {
+                        return Err(TypeError::InvalidFieldName {
+                            field: field.key.clone(),
+                            target_struct: name.clone(),
+                        });
+                    }
+                }
+                if flags.len() != order.len() {
+                    return Err(TypeError::NotCorrectFields {
+                        fields: order
+                            .iter()
+                            .filter_map(|f| {
+                                if !flags.contains(f) {
+                                    Some(f.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<String>>(),
+                        target: name.clone(),
+                    });
+                } else {
+                    BeatriceType::Struct { fields, order }
+                }
+            }
         };
         Ok(v)
     }
@@ -114,6 +158,15 @@ impl BeatriceTranspiler {
         Err(TypeError::NotRecognizedVar(identifier.to_string()))
     }
 
+    pub(crate) fn typeof_struct(&self, identifier: &str) -> Result<BeatriceType, TypeError> {
+        for scope in self.scopes() {
+            if scope.has_struct(identifier) {
+                return Ok(scope.kindof(identifier)?.clone());
+            }
+        }
+        Err(TypeError::NotRecognizedType(identifier.to_string()))
+    }
+
     pub(crate) fn generate_metadata(&mut self, ast: &AST) -> Result<(), TypeError> {
         match ast {
             AST::Function {
@@ -191,6 +244,9 @@ impl BeatriceTranspiler {
             AST::Struct { name, .. } => {
                 let stype = self.ast_typeof_struct(ast)?;
                 self.current_scope_mut().define_struct(name.clone(), stype);
+            }
+            AST::StructExpr { .. } => {
+                self.ast_typeof_expression(ast)?;
             }
         };
         Ok(())

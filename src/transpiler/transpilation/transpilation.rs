@@ -31,11 +31,20 @@ impl BeatriceTranspiler {
                 mutable,
                 body,
             } => {
-                let content = self.generate_expression_content(body);
-                if *mutable {
-                    format!("let {varname} = {content};")
+                if let AST::StructExpr { .. } = **body {
+                    let content = self.generate_expression_content(body);
+                    if !*mutable {
+                        format!("const {varname} = Object.freeze({content})")
+                    } else {
+                        format!("const {varname} = {content}")
+                    }
                 } else {
-                    format!("const {varname} = {content};")
+                    let content = self.generate_expression_content(body);
+                    if *mutable {
+                        format!("let {varname} = {content};")
+                    } else {
+                        format!("const {varname} = {content};")
+                    }
                 }
             }
             AST::BinExpr(lhs, rhs, operator) => {
@@ -55,6 +64,25 @@ impl BeatriceTranspiler {
             AST::Return(r) => format!("return {};", self.generate_expression_content(r)),
             AST::FunctionCall { name, args } => self.generate_fcall_content(name, args),
             AST::Struct { .. } => "".to_string(),
+            AST::StructExpr { name, fields } => {
+                let mut out = format!("/**{name}*/ {{");
+                for field in fields {
+                    match &field.value {
+                        AST::Identifier(fval) if field.key == *fval => {
+                            out.push_str(&field.key);
+                            out.push(',');
+                        }
+                        _ => {
+                            let content = self.generate_expression_content(&field.value);
+                            out.push_str(&format!("{}:{content},", field.key));
+                        }
+                    }
+                }
+                out.split_off(out.len() - 1).truncate(0);
+                out.push('}');
+                out.push(';');
+                out
+            }
         }
     }
     fn generate_function_content(&mut self, ast: &AST) -> String {

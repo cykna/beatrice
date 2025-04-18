@@ -28,7 +28,25 @@ impl Parser {
                 }
             }
             TokenKind::Float(f) => Ok(AST::Float(f.parse().unwrap())),
-            TokenKind::Identifier(s) => Ok(AST::Identifier(s)),
+            TokenKind::Identifier(s) => {
+                if let Some(Token {
+                    kind: TokenKind::OpenParen,
+                    ..
+                }) = self.peek()
+                {
+                    self.eat()?;
+                    self.parse_function_call(s)
+                } else if let Some(Token {
+                    kind: TokenKind::OpenBrace,
+                    ..
+                }) = self.peek()
+                {
+                    self.eat()?;
+                    self.parse_struct_expr(s)
+                } else {
+                    Ok(AST::Identifier(s))
+                }
+            }
             TokenKind::OpenParen => {
                 let next = self.eat()?;
                 let val = self.parse_expr(next)?;
@@ -120,18 +138,7 @@ impl Parser {
                 expect!(self, TokenKind::CloseParen)?;
                 Ok(val)
             }
-            TokenKind::Identifier(ref s) => {
-                if let Some(Token {
-                    kind: TokenKind::OpenParen,
-                    ..
-                }) = self.peek()
-                {
-                    self.eat()?;
-                    self.parse_function_call(s.clone())
-                } else {
-                    self.parse_expr(tk)
-                }
-            }
+            TokenKind::Identifier(ref s) => self.parse_expr(tk),
             TokenKind::Int(_) | TokenKind::Float(_) => self.parse_expr(tk),
             _ => Err(AstError {
                 kind: AstErrorKind::UnexpectedToken(tk),

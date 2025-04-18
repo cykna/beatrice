@@ -36,6 +36,14 @@ pub struct KeyTypePair {
     pub key: String,
     pub kindof: TypeAst,
 }
+///Same as KeyTypePair but instead, is used only by struct expressions to define the values of the
+///key
+#[derive(Debug)]
+pub struct KeyExprPair {
+    pub key: String,
+    pub value: AST,
+}
+
 #[derive(Debug)]
 pub enum AST {
     Identifier(String),
@@ -61,6 +69,10 @@ pub enum AST {
     Struct {
         name: String,
         fields: VecDeque<KeyTypePair>,
+    },
+    StructExpr {
+        name: String,
+        fields: VecDeque<KeyExprPair>,
     },
 }
 #[derive(Debug, Default)]

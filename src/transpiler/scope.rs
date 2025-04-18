@@ -47,6 +47,11 @@ impl Scope {
     }
 
     #[inline]
+    pub fn has_struct(&self, name: &str) -> bool {
+        self.struct_names.contains(name)
+    }
+
+    #[inline]
     pub fn has_variable_or_function(&self, name: &str) -> bool {
         self.var_names.contains(name) || self.function_names.contains(name)
     }

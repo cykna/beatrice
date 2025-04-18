@@ -5,5 +5,8 @@ struct Suamae {
 
 function main():void {
   let a = 5;
-
+  let mut b = Suamae {
+      eita: 5,
+      suamae: 12.0
+    };
 }

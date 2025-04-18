@@ -2,16 +2,16 @@ use std::collections::VecDeque;
 
 use crate::expect;
 
-use super::{AST, AstError, AstErrorKind, FunctionParameter, Parser, Token, TokenKind};
+use super::{AST, AstError, AstErrorKind, KeyTypePair, Parser, Token, TokenKind};
 
 impl Parser {
-    pub fn parse_struct_params(&mut self) -> Result<VecDeque<FunctionParameter>, AstError> {
+    pub fn parse_struct_fields(&mut self) -> Result<VecDeque<KeyTypePair>, AstError> {
         if let Some(Token {
             kind: TokenKind::CloseBrace,
             ..
         }) = self.peek()
         {
-            self.eat();
+            self.eat()?;
             return Ok(VecDeque::new());
         }
         let mut out = VecDeque::new();
@@ -23,21 +23,20 @@ impl Parser {
             else {
                 unreachable!();
             };
-            expect!(self, TokenKind::Colon);
+            expect!(self, TokenKind::Colon)?;
             let field_type = self.get_type()?;
-            out.push_back(FunctionParameter {
-                paramname: field_name,
-                paramtype: field_type,
+            out.push_back(KeyTypePair {
+                key: field_name,
+                kindof: field_type,
             });
+            expect!(self, TokenKind::SemiColon)?;
             if let Some(Token {
                 kind: TokenKind::CloseBrace,
                 ..
             }) = self.peek()
             {
-                self.eat();
+                self.eat()?;
                 break;
-            } else {
-                expect!(self, TokenKind::SemiColon)?;
             }
         }
         Ok(out)
@@ -52,6 +51,11 @@ impl Parser {
             unreachable!()
         };
         expect!(self, TokenKind::OpenBrace)?;
-        let params = self.parse_struct_params()?;
+        let params = self.parse_struct_fields()?;
+        dbg!(self.peek());
+        Ok(AST::Struct {
+            name: structname,
+            fields: params,
+        })
     }
 }

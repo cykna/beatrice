@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 pub mod checkings;
 pub mod scope;
@@ -13,6 +13,10 @@ pub enum BeatriceType {
     Function {
         params: VecDeque<BeatriceType>,
         return_type: Box<BeatriceType>,
+    },
+    Struct {
+        fields: HashMap<String, BeatriceType>,
+        order: Vec<String>,
     },
 }
 #[derive(Debug)]

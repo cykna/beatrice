@@ -2,7 +2,6 @@ mod basics;
 mod functions;
 mod structs;
 mod types;
-pub use functions::FunctionParameter;
 
 pub use crate::tokenizer::{Operator, Token, TokenKind, tokenize};
 use std::collections::VecDeque;
@@ -30,7 +29,13 @@ pub enum TypeAst {
         return_type: Box<TypeAst>,
     },
 }
-
+///A pair of key and type. The key is the name and kindof the type of it. Used for function
+///parameters and struct fields
+#[derive(Debug)]
+pub struct KeyTypePair {
+    pub key: String,
+    pub kindof: TypeAst,
+}
 #[derive(Debug)]
 pub enum AST {
     Identifier(String),
@@ -44,7 +49,7 @@ pub enum AST {
     },
     Function {
         name: String,
-        params: VecDeque<FunctionParameter>,
+        params: VecDeque<KeyTypePair>,
         returntype: TypeAst,
         body: Program,
     },
@@ -53,6 +58,10 @@ pub enum AST {
         args: VecDeque<AST>,
     },
     Return(Box<AST>),
+    Struct {
+        name: String,
+        fields: VecDeque<KeyTypePair>,
+    },
 }
 #[derive(Debug, Default)]
 pub struct Program {

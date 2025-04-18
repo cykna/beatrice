@@ -1,4 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
+
+use crate::parser::KeyTypePair;
 
 use super::{BeatriceType, TypeError, checkings::checker::TypeChecker};
 
@@ -6,6 +8,7 @@ use super::{BeatriceType, TypeError, checkings::checker::TypeChecker};
 pub struct Scope {
     var_names: HashSet<String>,
     function_names: HashSet<String>,
+    struct_names: HashSet<String>,
     types: TypeChecker,
 }
 
@@ -14,6 +17,7 @@ impl Scope {
         Self {
             var_names: HashSet::new(),
             function_names: HashSet::new(),
+            struct_names: HashSet::new(),
             types: TypeChecker::new(),
         }
     }
@@ -28,6 +32,12 @@ impl Scope {
     pub fn define_function(&mut self, name: String, kind: BeatriceType) {
         assert!(matches!(kind, BeatriceType::Function { .. }));
         self.function_names.insert(name.clone());
+        self.types.define(name, kind);
+    }
+    #[inline]
+    pub fn define_struct(&mut self, name: String, kind: BeatriceType) {
+        assert!(matches!(kind, BeatriceType::Struct { .. }));
+        self.struct_names.insert(name.to_string());
         self.types.define(name, kind);
     }
 

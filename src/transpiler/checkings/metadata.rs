@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 use crate::{
     parser::{AST, TypeAst},
@@ -25,10 +25,31 @@ impl BeatriceTranspiler {
                 };
                 *return_type.clone()
             }
+            AST::Struct { .. } => self.ast_typeof_struct(expr)?,
         };
         Ok(v)
     }
 
+    ///Generates a beatrice type based on a struct declaration
+    pub(crate) fn ast_typeof_struct(&mut self, s: &AST) -> Result<BeatriceType, TypeError> {
+        let AST::Struct { fields, .. } = s else {
+            panic!("This ia a bug. Expected to receive a struct");
+        };
+        let (fields, order) = {
+            let mut order = Vec::with_capacity(fields.len());
+            let mut mapfields = HashMap::with_capacity(fields.len());
+            for field in fields {
+                order.push(field.key.clone());
+                mapfields.insert(
+                    field.key.clone(),
+                    Self::t_abstract_from_primitive(&field.kindof)?,
+                );
+            }
+            (mapfields, order)
+        };
+        Ok(BeatriceType::Struct { fields, order })
+    }
+    ///Generates a beatrice type based on a function declaration
     pub(crate) fn ast_typeof_function(&mut self, f: &AST) -> Result<BeatriceType, TypeError> {
         let AST::Function {
             params, returntype, ..
@@ -38,7 +59,7 @@ impl BeatriceTranspiler {
         };
         let mut fparams = VecDeque::with_capacity(params.len());
         for param in params {
-            fparams.push_back(Self::t_abstract_from_primitive(&param.paramtype)?);
+            fparams.push_back(Self::t_abstract_from_primitive(&param.kindof)?);
         }
         let rtype = Self::t_abstract_from_primitive(returntype)?;
         Ok(BeatriceType::Function {
@@ -104,9 +125,9 @@ impl BeatriceTranspiler {
                 self.enter_scope();
 
                 for param in params {
-                    let param_type = Self::t_abstract_from_primitive(&param.paramtype)?;
+                    let param_type = Self::t_abstract_from_primitive(&param.kindof)?;
                     self.current_scope_mut()
-                        .define_variable(param.paramname.clone(), param_type);
+                        .define_variable(param.key.clone(), param_type);
                 }
                 let mut n = 0;
                 for ast in body.body() {
@@ -166,6 +187,10 @@ impl BeatriceTranspiler {
                         });
                     }
                 }
+            }
+            AST::Struct { name, .. } => {
+                let stype = self.ast_typeof_struct(ast)?;
+                self.current_scope_mut().define_struct(name.clone(), stype);
             }
         };
         Ok(())

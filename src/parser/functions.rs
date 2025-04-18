@@ -1,13 +1,10 @@
 use std::collections::VecDeque;
 
-use super::{AST, AstError, AstErrorKind, Operator, Program, Token, TokenKind, TypeAst};
+use super::{
+    AST, AstError, AstErrorKind, KeyTypePair, Operator, Program, Token, TokenKind, TypeAst,
+};
 use crate::{expect, parser::Parser};
 
-#[derive(Debug)]
-pub struct FunctionParameter {
-    pub paramname: String,
-    pub paramtype: TypeAst,
-}
 #[derive(PartialEq, Eq)]
 enum FunctionBodyType {
     Block,
@@ -16,23 +13,20 @@ enum FunctionBodyType {
 
 impl Parser {
     ///Parses the current function parameter, eating only its necessary data to create a FunctionParameter.
-    fn parse_fparameter(&mut self) -> Result<FunctionParameter, AstError> {
+    fn parse_fparameter(&mut self) -> Result<KeyTypePair, AstError> {
         let Token {
-            kind: TokenKind::Identifier(paramname),
+            kind: TokenKind::Identifier(key),
             ..
         } = expect!(self, TokenKind::Identifier(_))?
         else {
             unreachable!();
         };
         expect!(self, TokenKind::Colon)?;
-        let paramtype = self.get_type()?;
-        Ok(FunctionParameter {
-            paramname,
-            paramtype,
-        })
+        let kindof = self.get_type()?;
+        Ok(KeyTypePair { key, kindof })
     }
 
-    fn parse_params(&mut self) -> Result<VecDeque<FunctionParameter>, AstError> {
+    fn parse_params(&mut self) -> Result<VecDeque<KeyTypePair>, AstError> {
         let mut params = VecDeque::new();
         loop {
             if let Some(Token {

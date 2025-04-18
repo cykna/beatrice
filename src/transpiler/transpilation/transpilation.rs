@@ -54,6 +54,7 @@ impl BeatriceTranspiler {
             }
             AST::Return(r) => format!("return {};", self.generate_expression_content(r)),
             AST::FunctionCall { name, args } => self.generate_fcall_content(name, args),
+            AST::Struct { .. } => "".to_string(),
         }
     }
     fn generate_function_content(&mut self, ast: &AST) -> String {
@@ -68,7 +69,7 @@ impl BeatriceTranspiler {
         {
             let mut param_amount = 0;
             for param in params {
-                content.push_str(&param.paramname);
+                content.push_str(&param.key);
                 content.push(',');
                 param_amount += 1;
             }

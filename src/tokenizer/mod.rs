@@ -106,6 +106,9 @@ pub enum Reserved {
     Type,
     If,
     Else,
+    Loop,
+    While,
+    For,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -289,6 +292,9 @@ fn check_symbol(c: &char, chars: &[char], mut idx: usize) -> Option<(TokenKind, 
                 "trait" => TokenKind::Reserved(Reserved::Trait),
                 "if" => TokenKind::Reserved(Reserved::If),
                 "else" => TokenKind::Reserved(Reserved::Else),
+                "loop" => TokenKind::Reserved(Reserved::Loop),
+                "while" => TokenKind::Reserved(Reserved::While),
+                "for" => TokenKind::Reserved(Reserved::For),
                 _ => TokenKind::Identifier(buffer),
             },
             len,

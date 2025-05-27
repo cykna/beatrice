@@ -10,52 +10,56 @@ use crate::{
 };
 
 impl Parser {
+    pub fn parse_int(integer: String) -> AST {
+        let integer_bytes = integer.as_bytes();
+        if integer.len() > 2 && integer_bytes[0] == b'0' {
+            let n = i64::from_str_radix(
+                &integer,
+                match integer_bytes[1] {
+                    b'x' | b'X' => 16,
+                    b'B' | b'b' => 8,
+                    _ => 10,
+                },
+            )
+            .unwrap();
+            AST::Int(n)
+        } else {
+            AST::Int(integer.parse().unwrap())
+        }
+    }
+    pub fn parse_identifier(
+        &mut self,
+        identifier: String,
+        condition: ParsingCondition,
+    ) -> AstResult {
+        if let Some(Token {
+            kind: TokenKind::OpenParen,
+            ..
+        }) = self.peek()
+        {
+            self.eat()?;
+            return self.parse_function_call(identifier);
+        } else if let Some(Token {
+            kind: TokenKind::OpenBrace,
+            ..
+        }) = self.peek()
+        {
+            if condition != ParsingCondition::NoStruct {
+                self.eat()?;
+                return self.parse_struct_expr(identifier);
+            }
+        };
+        Ok(AST::Identifier(identifier))
+    }
     pub fn parse_primary(&mut self, tk: Token, condition: ParsingCondition) -> AstResult {
         match tk.kind {
-            TokenKind::Int(s) => {
-                let sslice = s.as_bytes();
-                if s.len() > 2 && sslice[0] == b'0' {
-                    let n = i64::from_str_radix(
-                        &s,
-                        match sslice[1] {
-                            b'x' | b'X' => 16,
-                            b'B' | b'b' => 8,
-                            _ => 10,
-                        },
-                    )
-                    .unwrap();
-                    Ok(AST::Int(n))
-                } else {
-                    Ok(AST::Int(s.parse().unwrap()))
-                }
-            }
+            TokenKind::Int(s) => Ok(Self::parse_int(s)),
             TokenKind::Float(f) => Ok(AST::Float(f.parse().unwrap())),
-            TokenKind::Identifier(s) => {
-                if let Some(Token {
-                    kind: TokenKind::OpenParen,
-                    ..
-                }) = self.peek()
-                {
-                    self.eat()?;
-                    self.parse_function_call(s)
-                } else if let Some(Token {
-                    kind: TokenKind::OpenBrace,
-                    ..
-                }) = self.peek()
-                {
-                    if condition != ParsingCondition::NoStruct {
-                        self.eat()?;
-                        self.parse_struct_expr(s)
-                    } else {
-                        Ok(AST::Identifier(s))
-                    }
-                } else {
-                    Ok(AST::Identifier(s))
-                }
-            }
+
+            TokenKind::Identifier(s) => self.parse_identifier(s, condition),
             TokenKind::OpenParen => {
                 let next = self.eat()?;
-                let val = self.parse_expr(next, ParsingCondition::PrimitiveExpr)?;
+                let val = self.parse_expr(next, ParsingCondition::None)?;
                 expect!(self, TokenKind::CloseParen)?;
                 Ok(val)
             }
@@ -157,7 +161,7 @@ impl Parser {
                         body: Box::new(if let TokenKind::Reserved(Reserved::If) = next.kind {
                             self.parse_if_assign_expr()?
                         } else {
-                            self.parse_expr(tk, ParsingCondition::PrimitiveExpr)?
+                            self.parse_expr(next, ParsingCondition::PrimitiveExpr)?
                         }),
                     })
                 }
@@ -191,6 +195,7 @@ impl Parser {
             TokenKind::Identifier(_) => self.parse_expr(tk, ParsingCondition::None),
             TokenKind::Int(_) | TokenKind::Float(_) => self.parse_expr(tk, ParsingCondition::None),
             TokenKind::Reserved(Reserved::If) => self.parse_if_expr(),
+            TokenKind::Reserved(Reserved::Loop) => self.parse_loop_statment(),
             _ => Err(AstError {
                 line: tk.line,
                 column: tk.column,

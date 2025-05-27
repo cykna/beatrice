@@ -69,3 +69,4 @@ To do such as arr[2].field_1 = 30; it will transpile to
 BeatriceStructMemo.field_1[2] = 30;
 
 If the type is not numeric, then it cannot be 'Memorized'
+

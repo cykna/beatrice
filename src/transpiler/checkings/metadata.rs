@@ -100,6 +100,7 @@ impl BeatriceTranspiler {
                     BeatriceType::Void
                 }
             }
+            AST::Loop(body) => BeatriceType::Void,
         };
         Ok(v)
     }
@@ -302,6 +303,7 @@ impl BeatriceTranspiler {
                     self.generate_metadata(expr)?;
                 }
             }
+            AST::Loop(ast) => self.generate_metadata(ast)?,
         };
         Ok(())
     }

@@ -1,6 +1,7 @@
 mod basics;
 mod conditionals;
 mod functions;
+mod loops;
 mod structs;
 mod types;
 
@@ -91,6 +92,7 @@ pub enum AST {
         elseblock: Option<Box<AST>>,
     },
     Block(VecDeque<AST>),
+    Loop(Box<AST>),
 }
 #[derive(Debug, Default)]
 pub struct Program {

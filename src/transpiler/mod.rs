@@ -44,4 +44,8 @@ pub enum TypeError {
         fields: Vec<String>,
         target: String,
     },
+    IfElseWrong {
+        ifbranch: BeatriceType,
+        elsebranch: BeatriceType,
+    },
 }

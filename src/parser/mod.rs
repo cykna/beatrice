@@ -1,4 +1,5 @@
 mod basics;
+mod conditionals;
 mod functions;
 mod structs;
 mod types;
@@ -6,11 +7,21 @@ mod types;
 pub use crate::tokenizer::{Operator, Token, TokenKind, tokenize};
 use std::collections::VecDeque;
 
+type AstResult = Result<AST, AstError>;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ParsingCondition {
+    NoStruct,      //Ignores structs
+    PrimitiveExpr, //Simple expressions such as 5, "abc", true, a, fn(), b * 5, ...;
+    None,
+}
+
 #[derive(Debug)]
 pub enum AstErrorKind {
     InvalidScopeExpr(TokenKind),
     InvalidReturnType(TokenKind),
     UnexpectedToken(Token),
+    ExpectedElseBranch,
     EatingEOF,
 }
 
@@ -74,6 +85,12 @@ pub enum AST {
         name: String,
         fields: VecDeque<KeyExprPair>,
     },
+    If {
+        expr: Box<AST>,
+        block: Box<AST>,
+        elseblock: Option<Box<AST>>,
+    },
+    Block(VecDeque<AST>),
 }
 #[derive(Debug, Default)]
 pub struct Program {
@@ -150,7 +167,7 @@ impl Parser {
     }
 
     #[inline]
-    pub fn start_gen(&mut self, token: Token) -> Result<AST, AstError> {
+    pub fn start_gen(&mut self, token: Token) -> AstResult {
         self.parse_global_scope(token)
     }
 }
@@ -159,6 +176,10 @@ impl AST {
     #[inline]
     pub fn is_binexpr(&self) -> bool {
         matches!(self, Self::BinExpr(_, _, _))
+    }
+    #[inline]
+    pub fn is_blockexpr(&self) -> bool {
+        matches!(self, Self::Block(_))
     }
 }
 

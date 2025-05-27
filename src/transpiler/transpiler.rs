@@ -1,5 +1,6 @@
 use std::{
     collections::VecDeque,
+    fmt::Display,
     path::{Path, PathBuf},
 };
 
@@ -23,6 +24,10 @@ impl BeatriceTranspiler {
             target: target.into(),
             indent_level: 0,
         }
+    }
+
+    pub fn indent<T: Display>(&self, content: T) -> String {
+        format!("{}{content}", " ".repeat(self.indent_level))
     }
 
     pub fn indentation_level(&self) -> usize {

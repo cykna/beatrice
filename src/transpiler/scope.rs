@@ -4,7 +4,7 @@ use crate::parser::KeyTypePair;
 
 use super::{BeatriceType, TypeError, checkings::checker::TypeChecker};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Scope {
     var_names: HashSet<String>,
     function_names: HashSet<String>,

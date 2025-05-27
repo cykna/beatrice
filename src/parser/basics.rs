@@ -1,6 +1,8 @@
 //This files implements the basics features of a parser. Simply to generate AST and bin expr and variable definittions
 
-use super::{AST, AstError, AstErrorKind, Parser};
+use std::collections::VecDeque;
+
+use super::{AST, AstError, AstErrorKind, AstResult, Parser, ParsingCondition};
 use crate::{
     expect,
     parser::Operator,
@@ -8,7 +10,7 @@ use crate::{
 };
 
 impl Parser {
-    pub fn parse_primary(&mut self, tk: Token) -> Result<AST, AstError> {
+    pub fn parse_primary(&mut self, tk: Token, condition: ParsingCondition) -> AstResult {
         match tk.kind {
             TokenKind::Int(s) => {
                 let sslice = s.as_bytes();
@@ -41,28 +43,32 @@ impl Parser {
                     ..
                 }) = self.peek()
                 {
-                    self.eat()?;
-                    self.parse_struct_expr(s)
+                    if condition != ParsingCondition::NoStruct {
+                        self.eat()?;
+                        self.parse_struct_expr(s)
+                    } else {
+                        Ok(AST::Identifier(s))
+                    }
                 } else {
                     Ok(AST::Identifier(s))
                 }
             }
             TokenKind::OpenParen => {
                 let next = self.eat()?;
-                let val = self.parse_expr(next)?;
+                let val = self.parse_expr(next, ParsingCondition::PrimitiveExpr)?;
                 expect!(self, TokenKind::CloseParen)?;
                 Ok(val)
             }
             _ => Err(AstError {
+                line: tk.line,
+                column: tk.column,
                 kind: AstErrorKind::UnexpectedToken(tk),
-                line: 0,
-                column: 0,
             }),
         }
     }
 
-    pub fn parse_multiplicative(&mut self, tk: Token) -> Result<AST, AstError> {
-        let mut left = self.parse_primary(tk)?;
+    pub fn parse_multiplicative(&mut self, tk: Token, condition: ParsingCondition) -> AstResult {
+        let mut left = self.parse_primary(tk, condition)?;
         while let Some(Token {
             kind: TokenKind::Operator(op @ (Operator::Star(false) | Operator::Slash(false))),
             ..
@@ -71,13 +77,13 @@ impl Parser {
             let op = op.clone();
             self.eat()?;
             let curr = self.eat()?;
-            let right = self.parse_primary(curr)?;
+            let right = self.parse_primary(curr, condition)?;
             left = AST::BinExpr(Box::new(left), Box::new(right), op);
         }
         Ok(left)
     }
-    pub fn parse_additive(&mut self, tk: Token) -> Result<AST, AstError> {
-        let mut left = self.parse_multiplicative(tk)?;
+    pub fn parse_additive(&mut self, tk: Token, condition: ParsingCondition) -> AstResult {
+        let mut left = self.parse_multiplicative(tk, condition)?;
         while let Some(Token {
             kind: TokenKind::Operator(op @ (Operator::Add(false) | Operator::Sub(false))),
             ..
@@ -86,20 +92,54 @@ impl Parser {
             let op = op.clone();
             self.eat()?;
             let curr = self.eat()?;
-            let right = self.parse_multiplicative(curr)?;
+            let right = self.parse_multiplicative(curr, condition)?;
             left = AST::BinExpr(Box::new(left), Box::new(right), op);
         }
         Ok(left)
     }
-    /**
-     * Parses the current expression. The given token is the current token
-     */
-    pub fn parse_expr(&mut self, tk: Token) -> Result<AST, AstError> {
-        self.parse_additive(tk)
+    /// Parses the current expression. The given token is the current token
+    pub fn parse_expr(&mut self, tk: Token, condition: ParsingCondition) -> AstResult {
+        if let TokenKind::OpenBrace = tk.kind {
+            self.parse_block_expr()
+        } else if let TokenKind::Reserved(Reserved::If) = tk.kind {
+            self.parse_if_expr()
+        } else {
+            self.parse_additive(tk, condition)
+        }
     }
-    pub fn parse_statment(&mut self, tk: Token) -> Result<AST, AstError> {
+    pub fn parse_block_expr(&mut self) -> AstResult {
+        let mut asts = VecDeque::new();
+        loop {
+            if let Some(Token {
+                kind: TokenKind::CloseBrace,
+                ..
+            }) = self.peek()
+            {
+                self.eat()?;
+                break;
+            }
+            let tk = self.eat()?;
+            asts.push_back(self.parse_statment(tk)?);
+            if let Some(Token {
+                kind: TokenKind::CloseBrace,
+                ..
+            }) = self.peek()
+            {
+                self.eat()?;
+                break;
+            } else {
+                expect!(self, TokenKind::SemiColon)?;
+            }
+        }
+        Ok(AST::Block(asts))
+    }
+    /**
+     * Parses a basic statment.
+     */
+    pub fn parse_statment(&mut self, tk: Token) -> AstResult {
         let val = match tk.kind {
             TokenKind::Reserved(Reserved::Let) => match self.eat()?.kind {
+                //let mut name = ...
                 TokenKind::Reserved(Reserved::Mut) => {
                     let Token {
                         kind: TokenKind::Identifier(varname),
@@ -114,42 +154,53 @@ impl Parser {
                     Ok(AST::VarDecl {
                         varname,
                         mutable: true,
-                        body: Box::new(self.parse_expr(next)?),
+                        body: Box::new(if let TokenKind::Reserved(Reserved::If) = next.kind {
+                            self.parse_if_assign_expr()?
+                        } else {
+                            self.parse_expr(tk, ParsingCondition::PrimitiveExpr)?
+                        }),
                     })
                 }
+                //let name = ...
                 TokenKind::Identifier(varname) => {
                     expect!(self, TokenKind::Operator(Operator::Eq(false)))?; //eats the '=' operator
                     let next = self.eat()?;
+
                     Ok(AST::VarDecl {
                         varname,
                         mutable: false,
-                        body: Box::new(self.parse_expr(next)?),
+                        body: Box::new(if let TokenKind::Reserved(Reserved::If) = next.kind {
+                            self.parse_if_assign_expr()?
+                        } else {
+                            self.parse_expr(next, ParsingCondition::PrimitiveExpr)?
+                        }),
                     })
                 }
                 _ => Err(AstError {
+                    line: tk.line,
+                    column: tk.column,
                     kind: AstErrorKind::UnexpectedToken(tk),
-                    line: 0,
-                    column: 0,
                 }),
             },
             TokenKind::OpenParen => {
                 let next = self.eat()?;
-                let val = self.parse_expr(next)?;
+                let val = self.parse_expr(next, ParsingCondition::PrimitiveExpr)?;
                 expect!(self, TokenKind::CloseParen)?;
                 Ok(val)
             }
-            TokenKind::Identifier(ref s) => self.parse_expr(tk),
-            TokenKind::Int(_) | TokenKind::Float(_) => self.parse_expr(tk),
+            TokenKind::Identifier(_) => self.parse_expr(tk, ParsingCondition::None),
+            TokenKind::Int(_) | TokenKind::Float(_) => self.parse_expr(tk, ParsingCondition::None),
+            TokenKind::Reserved(Reserved::If) => self.parse_if_expr(),
             _ => Err(AstError {
+                line: tk.line,
+                column: tk.column,
                 kind: AstErrorKind::UnexpectedToken(tk),
-                line: 0,
-                column: 0,
             }),
         }?;
         Ok(val)
     }
 
-    pub fn parse_global_scope(&mut self, token: Token) -> Result<AST, AstError> {
+    pub fn parse_global_scope(&mut self, token: Token) -> AstResult {
         match &token.kind {
             TokenKind::Reserved(Reserved::Struct) => self.parse_struct_decl(),
             TokenKind::Reserved(Reserved::Function) => self.parse_function(), //does not neet to give the token because the current is 'function' keyword

@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
 
 use super::{
-    AST, AstError, AstErrorKind, KeyTypePair, Operator, Program, Token, TokenKind, TypeAst,
+    AST, AstError, AstErrorKind, KeyTypePair, Operator, ParsingCondition, Program, Token,
+    TokenKind, TypeAst,
 };
 use crate::{expect, parser::Parser};
 
@@ -130,7 +131,9 @@ impl Parser {
         } else {
             let current = self.eat()?;
             let p = Program {
-                body: VecDeque::from(vec![AST::Return(Box::new(self.parse_expr(current)?))]),
+                body: VecDeque::from(vec![AST::Return(Box::new(
+                    self.parse_expr(current, ParsingCondition::None)?,
+                ))]),
             };
             expect!(self, TokenKind::SemiColon)?;
             p
@@ -157,7 +160,7 @@ impl Parser {
         let mut params = VecDeque::new();
         loop {
             let curr = self.eat()?;
-            params.push_back(self.parse_expr(curr)?);
+            params.push_back(self.parse_expr(curr, ParsingCondition::None)?);
             if let Some(Token {
                 kind: TokenKind::CloseParen,
                 ..

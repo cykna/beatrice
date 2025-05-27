@@ -2,10 +2,18 @@ use std::collections::VecDeque;
 
 use crate::expect;
 
-use super::{AST, AstError, AstErrorKind, KeyExprPair, KeyTypePair, Parser, Token, TokenKind};
+use super::{
+    AST, AstError, AstErrorKind, KeyExprPair, KeyTypePair, Parser, ParsingCondition, Token,
+    TokenKind,
+};
 
 impl Parser {
-    pub fn parse_struct_fields(&mut self) -> Result<VecDeque<KeyTypePair>, AstError> {
+    ///Parses the typings of a struct, such as:
+    //{
+    /// a: float;
+    /// b: int;
+    ///}
+    pub fn parse_struct_fields_types(&mut self) -> Result<VecDeque<KeyTypePair>, AstError> {
         if let Some(Token {
             kind: TokenKind::CloseBrace,
             ..
@@ -41,7 +49,11 @@ impl Parser {
         }
         Ok(out)
     }
-
+    ///Parses an struct itself with it's fields. Such as
+    ///struct S {
+    ///  a:int;
+    ///  b:float;
+    ///}
     pub fn parse_struct_decl(&mut self) -> Result<AST, AstError> {
         let Token {
             kind: TokenKind::Identifier(structname),
@@ -51,24 +63,14 @@ impl Parser {
             unreachable!()
         };
         expect!(self, TokenKind::OpenBrace)?;
-        let params = self.parse_struct_fields()?;
+        let params = self.parse_struct_fields_types()?;
         Ok(AST::Struct {
             name: structname,
             fields: params,
         })
     }
-    pub fn parse_struct_expr(&mut self, structname: String) -> Result<AST, AstError> {
-        if let Some(Token {
-            kind: TokenKind::CloseBrace,
-            ..
-        }) = self.peek()
-        {
-            self.eat()?;
-            return Ok(AST::StructExpr {
-                name: structname,
-                fields: VecDeque::new(),
-            });
-        };
+    ///Parses an struct expression fields.
+    fn parse_struct_field_values(&mut self) -> Result<VecDeque<KeyExprPair>, AstError> {
         let mut fields = VecDeque::new();
         loop {
             let Token {
@@ -92,7 +94,7 @@ impl Parser {
             }
             expect!(self, TokenKind::Colon)?;
             let current = self.eat()?;
-            let value = self.parse_expr(current)?;
+            let value = self.parse_expr(current, ParsingCondition::None)?;
             fields.push_back(KeyExprPair {
                 key: field_name,
                 value,
@@ -106,8 +108,32 @@ impl Parser {
                 break;
             } else {
                 expect!(self, TokenKind::Comma)?;
+                if let Some(Token {
+                    kind: TokenKind::CloseBrace,
+                    ..
+                }) = self.peek()
+                {
+                    self.eat()?;
+                    break;
+                }
             }
         }
+        Ok(fields)
+    }
+    ///Parses an struct expression itself
+    pub fn parse_struct_expr(&mut self, structname: String) -> Result<AST, AstError> {
+        if let Some(Token {
+            kind: TokenKind::CloseBrace,
+            ..
+        }) = self.peek()
+        {
+            self.eat()?;
+            return Ok(AST::StructExpr {
+                name: structname,
+                fields: VecDeque::new(),
+            });
+        };
+        let fields = self.parse_struct_field_values()?;
         Ok(AST::StructExpr {
             name: structname,
             fields,

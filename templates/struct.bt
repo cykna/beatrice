@@ -4,9 +4,14 @@ struct Suamae {
 }
 
 function main():void {
-  let a = 5;
-  let mut b = Suamae {
-      eita: 5,
-      suamae: 12.0
+  let a = 50;
+  let b = 50.0;
+  let mut c = Suamae {
+      eita: a,
+      suamae: 5.0,
+  };
+  let constant = Suamae {
+      eita: 12,
+      suamae: b,
     };
 }

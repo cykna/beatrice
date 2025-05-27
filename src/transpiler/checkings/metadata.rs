@@ -70,6 +70,36 @@ impl BeatriceTranspiler {
                     BeatriceType::Struct { fields, order }
                 }
             }
+            AST::Block(exprs) => {
+                let Some(last) = exprs.back() else {
+                    return Ok(BeatriceType::Void);
+                };
+                for (idx, ast) in exprs.iter().enumerate() {
+                    if idx == exprs.len() - 1 {
+                        break;
+                    }
+                    self.ast_typeof_expression(ast)?;
+                }
+                self.ast_typeof_expression(last)?
+            }
+            AST::If {
+                block, elseblock, ..
+            } => {
+                if let Some(elsebranch) = elseblock {
+                    let blocktype = self.ast_typeof_expression(block)?;
+                    let elsetype = self.ast_typeof_expression(elsebranch)?;
+                    if blocktype != elsetype {
+                        return Err(TypeError::IfElseWrong {
+                            ifbranch: blocktype,
+                            elsebranch: elsetype,
+                        });
+                    } else {
+                        blocktype
+                    }
+                } else {
+                    BeatriceType::Void
+                }
+            }
         };
         Ok(v)
     }
@@ -190,7 +220,6 @@ impl BeatriceTranspiler {
                         let BeatriceType::Function { return_type, .. } = &ftype else {
                             unreachable!();
                         };
-                        dbg!(&rtype, &return_type);
                         if **return_type != rtype {
                             return Err(TypeError::UnexpectedType {
                                 expected: *return_type.clone(),
@@ -217,10 +246,19 @@ impl BeatriceTranspiler {
             }
             AST::Int(_) | AST::Float(_) => {}
             AST::VarDecl { varname, body, .. } => {
-                let expr_kind = self.ast_typeof_expression(body)?;
+                let kind = if matches!(&**body, AST::Block(_) | AST::If { .. }) {
+                    self.enter_scope();
+                    self.generate_metadata(body)?;
+                    let t = self.ast_typeof_expression(body)?;
+                    self.exit_scope();
+                    t
+                } else {
+                    self.ast_typeof_expression(body)?
+                };
                 self.current_scope_mut()
-                    .define_variable(varname.clone(), expr_kind);
+                    .define_variable(varname.clone(), kind);
             }
+
             AST::BinExpr(lhs, rhs, _) => {
                 //checks if the bin expr is valid
                 self.generate_metadata(lhs)?;
@@ -247,6 +285,22 @@ impl BeatriceTranspiler {
             }
             AST::StructExpr { .. } => {
                 self.ast_typeof_expression(ast)?;
+            }
+            AST::If {
+                expr,
+                block,
+                elseblock,
+            } => {
+                self.generate_metadata(expr)?;
+                self.generate_metadata(block)?;
+                if let Some(elsebranch) = elseblock {
+                    self.generate_metadata(elsebranch)?;
+                }
+            }
+            AST::Block(exprs) => {
+                for expr in exprs {
+                    self.generate_metadata(expr)?;
+                }
             }
         };
         Ok(())

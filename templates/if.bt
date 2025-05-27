@@ -1,0 +1,11 @@
+function rand():int {
+  12
+}
+
+function main():void {
+  let a = 5;
+  let b = if a -> a * a else {
+    let q = if rand() -> 24 else -> 12;
+    if q -> q else -> 50;
+  };
+}

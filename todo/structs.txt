@@ -1,0 +1,71 @@
+Structs in beatrice can be transpiled to JS 3 ways. By default it's beatrice deffinition is:
+
+struct BeatriceStruct<Gen> where 
+  Gen extends Conditions;
+  ...
+{
+    field_1: Gen,
+    field_2: BeatriceType
+}
+
+When it's simply defined such as the example above, it will generate a simple object. So:
+
+let a:BeatriceStruct<u8> = BeatriceStruct {field_1:12, field_2: Something};
+
+will generate in js, 
+
+const a = Object.seal(field_1: 12, field_2: Something});
+
+If it's defined and implements some method, such as:
+
+impl BeatriceStruct<any> {
+    function something(mut self) {
+      ...
+    }
+}
+
+It will be something like:
+
+class BeatriceStruct {
+  constructor(field_1, field_2){
+    this.field_1 = field_1;
+    this.field_2 = field_2;
+    Object.seal(this);
+  }
+  something(){
+    ...
+  }
+}
+
+An Attribute structs can have but only if their inner values are numerics, is @Memorized. Memorized will extend these above, and will do the following:
+
+If not contains methods:
+
+const bstruct = Object.seal({field_1, field_2});
+
+but if something like:
+
+let arr = [BeatriceStruct; 20];
+It will transpile to 
+
+Supposing typeof(field_1) == uint8
+class BeatriceStructMemo {
+  constructor(size:number) {
+      this.field_1 = new Uint8Array(size);
+      this.field_2 = new Float32Array(size);
+    }
+    //If contains method
+    something(ptr) {
+      //If uses both
+      const field_1 = this.field_1[ptr];
+      const field_2 = this.field_2[ptr];
+      ...
+    }
+}
+and when calling
+arr[2].something() this will execute BeatriceStructMemo.something(2); if more arguments in the method, so, BeatriceStructMemo.something(2, ...otherargs);
+
+To do such as arr[2].field_1 = 30; it will transpile to
+BeatriceStructMemo.field_1[2] = 30;
+
+If the type is not numeric, then it cannot be 'Memorized'

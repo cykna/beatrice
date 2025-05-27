@@ -104,6 +104,8 @@ pub enum Reserved {
     Function,
     Macro,
     Type,
+    If,
+    Else,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -285,6 +287,8 @@ fn check_symbol(c: &char, chars: &[char], mut idx: usize) -> Option<(TokenKind, 
                 "type" => TokenKind::Reserved(Reserved::Type),
                 "struct" => TokenKind::Reserved(Reserved::Struct),
                 "trait" => TokenKind::Reserved(Reserved::Trait),
+                "if" => TokenKind::Reserved(Reserved::If),
+                "else" => TokenKind::Reserved(Reserved::Else),
                 _ => TokenKind::Identifier(buffer),
             },
             len,

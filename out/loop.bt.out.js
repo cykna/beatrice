@@ -1,4 +1,8 @@
 function main(){
-    let b = 5;
+    let a = 5;
+    for(;;){
+        const b = a * a;
+        const c = a + b / (a - 1);
+    };
 }
 

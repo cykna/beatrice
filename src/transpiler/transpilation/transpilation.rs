@@ -3,15 +3,6 @@ use std::{collections::VecDeque, io::Write};
 use crate::{parser::AST, transpiler::transpiler::BeatriceTranspiler};
 
 impl BeatriceTranspiler {
-    pub(crate) fn recursive_bin_expr(&mut self, ast: &AST) -> String {
-        let AST::BinExpr(lhs, rhs, operator) = ast else {
-            panic!("This is a bug. Expected receiving a BinExpr");
-        };
-        let lhs = self.generate_expression_content(lhs);
-        let rhs = self.generate_expression_content(rhs);
-        format!("({lhs} {operator} {rhs})")
-    }
-
     pub(crate) fn generate_expression_content(&mut self, ast: &AST) -> String {
         match ast {
             AST::Function { .. } => self.generate_function_content(ast),
@@ -19,19 +10,7 @@ impl BeatriceTranspiler {
             AST::Float(f) => f.to_string(),
             AST::Int(i) => i.to_string(),
             AST::VarDecl { .. } => self.generate_var_decl_content(ast),
-            AST::BinExpr(lhs, rhs, operator) => {
-                let lhs = if lhs.is_binexpr() {
-                    self.recursive_bin_expr(lhs)
-                } else {
-                    self.generate_expression_content(lhs)
-                };
-                let rhs = if rhs.is_binexpr() {
-                    self.recursive_bin_expr(rhs)
-                } else {
-                    self.generate_expression_content(rhs)
-                };
-                format!("{}{}{}", lhs, operator, rhs)
-            }
+            AST::BinExpr(..) => self.generate_binexpr_content(ast),
             AST::Return(r) => match &**r {
                 AST::Loop(body) => {
                     format!("{};", self.generate_loop_content(body))
@@ -63,10 +42,15 @@ impl BeatriceTranspiler {
             }
             AST::If { .. } => self.generate_if_expr(ast),
             AST::Block(asts) => {
-                let mut out = String::from("{");
+                let mut out = String::from("{\n");
+                self.increase_identation_level();
                 for ast in asts {
-                    out.push_str(&self.generate_expression_content(ast));
+                    let content = self.generate_expression_content(ast);
+                    out.push_str(&self.indent(content));
+                    out.push('\n');
                 }
+                self.decrease_identation_level();
+                out.push_str(&self.indent(""));
                 out.push('}');
                 out
             }

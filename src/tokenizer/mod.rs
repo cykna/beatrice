@@ -1,5 +1,6 @@
-use std::{collections::VecDeque, fmt::Display};
-
+mod operator;
+pub use operator::Operator;
+use std::collections::VecDeque;
 macro_rules! token {
     ($arg:expr, $actual:expr, $line:expr, $column:expr) => {{
         Token {
@@ -11,90 +12,6 @@ macro_rules! token {
     }};
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Operator {
-    //Bool means if they got a '=' after it.
-    Add(bool),
-    Sub(bool),
-    Star(bool),
-    Slash(bool),
-    Pow(bool),
-
-    Gt(bool),
-    Lt(bool),
-    Eq(bool),
-
-    Bang(bool),
-    Mod(bool),
-    And(bool),
-    Or(bool),
-
-    BitAnd(bool),
-    BitOr(bool),
-    Xor(bool),
-
-    BitLeft(bool),
-    BitRight(bool),
-
-    Arrow,
-
-    Increment,
-    Decrement,
-}
-impl Operator {
-    pub fn has_eq(&self) -> bool {
-        match self {
-            Self::Arrow | Self::Increment | Self::Decrement => false,
-            Self::Add(f)
-            | Self::Sub(f)
-            | Self::Star(f)
-            | Self::Slash(f)
-            | Self::Pow(f)
-            | Self::Gt(f)
-            | Self::Lt(f)
-            | Self::Eq(f)
-            | Self::Bang(f)
-            | Self::Mod(f)
-            | Self::And(f)
-            | Self::Or(f)
-            | Self::BitAnd(f)
-            | Self::BitOr(f)
-            | Self::Xor(f)
-            | Self::BitLeft(f)
-            | Self::BitRight(f) => *f,
-        }
-    }
-}
-impl Display for Operator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let content = {
-            let flag = if self.has_eq() { "=" } else { "" };
-            match self {
-                Self::Add(_) => format!("+{flag}"),
-                Self::Sub(_) => format!("-{flag}"),
-                Self::Star(_) => format!("*{flag}"),
-                Self::Slash(_) => format!("/{flag}"),
-                Self::Pow(_) => format!("**{flag}"),
-                Self::Gt(_) => format!(">{flag}"),
-                Self::Lt(_) => format!("<{flag}"),
-                Self::Eq(_) => format!("={flag}"),
-                Self::Bang(_) => format!("!{flag}"),
-                Self::Mod(_) => format!("%{flag}"),
-                Self::And(_) => format!("&&{flag}"),
-                Self::Or(_) => format!("||{flag}",),
-                Self::BitAnd(_) => format!("&{flag}"),
-                Self::BitOr(_) => format!("|{flag}"),
-                Self::Xor(_) => format!("^{flag}"),
-                Self::BitLeft(_) => format!("<<{flag}"),
-                Self::BitRight(_) => format!(">>{flag}"),
-                Self::Arrow => "->".to_string(),
-                Self::Increment => "++".to_string(),
-                Self::Decrement => "--".to_string(),
-            }
-        };
-        write!(f, "{content}")
-    }
-}
 #[derive(Debug, Clone, PartialEq)]
 pub enum Reserved {
     Trait,
@@ -155,6 +72,7 @@ fn check_operator(c: &char, chars: &[char], idx: usize) -> Option<(Operator, usi
     if let Some(next) = next {
         let flag = matches!(next, '=');
         let mut n = if flag { 1 } else { 0 } + 1;
+
         let operator = match c {
             '+' => match next {
                 '+' => {
@@ -379,10 +297,7 @@ pub fn tokenize(content: &str) -> VecDeque<Token> {
     let mut column = 0;
     let len = content.len();
     let chars = content.chars().collect::<Vec<char>>();
-    loop {
-        if i >= len {
-            break;
-        }
+    while i < len {
         let c = chars.get(i).unwrap();
         match c {
             ' ' => {
@@ -419,8 +334,8 @@ pub fn tokenize(content: &str) -> VecDeque<Token> {
                     ',' => TokenKind::Comma,
                     _ => {
                         if let Some((op, n)) = check_operator(c, &chars, i) {
-                            i += n;
-                            column += n;
+                            i += n - 1;
+                            column += n - 1;
                             TokenKind::Operator(op)
                         } else {
                             i += 1;

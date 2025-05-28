@@ -1,5 +1,7 @@
 function main():void {
   let mut a = 5;
-  let b = a * a;
-  let c = a + b / (a-1);
+  loop {
+    let b = a * a;
+    let c = a + b / (a - 1);
+  }
 }
